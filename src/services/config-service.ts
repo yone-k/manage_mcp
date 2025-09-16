@@ -7,30 +7,57 @@ const isRecord = (value: unknown): value is Record<string, unknown> => {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 };
 
+const isStringRecord = (record: unknown): record is Record<string, string> => {
+  if (!isRecord(record) || Object.values(record).some(value => typeof value !== 'string')) {
+    return false;
+  }
+
+  return true;
+};
+
 const isMcpEntry = (value: unknown): value is McpEntry => {
   if (!isRecord(value)) {
     return false;
   }
 
-  if (typeof value.command !== 'string' || value.command.length === 0) {
+  const transport = typeof value.transport === 'string' ? value.transport : undefined;
+  const fallbackType = typeof value.type === 'string' ? value.type : undefined;
+  const mode = (transport ?? fallbackType)?.toLowerCase();
+  const isRemoteMode = mode !== undefined && mode !== 'stdio';
+
+  if (!isRemoteMode) {
+    if (typeof value.command !== 'string' || value.command.length === 0) {
+      return false;
+    }
+  }
+
+  if (value.command !== undefined && typeof value.command !== 'string') {
     return false;
   }
 
-  if (value.args !== undefined && (!Array.isArray(value.args) || value.args.some(arg => typeof arg !== 'string'))) {
+  if (value.args !== undefined) {
+    if (!Array.isArray(value.args) || value.args.some(arg => typeof arg !== 'string')) {
+      return false;
+    }
+  }
+
+  if (value.env !== undefined && !isStringRecord(value.env)) {
     return false;
   }
 
-  if (value.env !== undefined) {
-    if (!isRecord(value.env)) {
-      return false;
-    }
-
-    if (Object.values(value.env).some(envValue => typeof envValue !== 'string')) {
-      return false;
-    }
+  if (value.headers !== undefined && !isStringRecord(value.headers)) {
+    return false;
   }
 
   if (value.project_path !== undefined && typeof value.project_path !== 'string') {
+    return false;
+  }
+
+  if (value.url !== undefined && typeof value.url !== 'string') {
+    return false;
+  }
+
+  if (isRemoteMode && (typeof value.url !== 'string' || value.url.length === 0)) {
     return false;
   }
 

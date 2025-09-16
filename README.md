@@ -27,11 +27,23 @@ npx manage-mcp list
 既存エントリを名前順に表示します。レジストリが存在しない場合は `~/.manage_mcp/mcp.json` を初期化します。
 
 ### エントリ追加
+ローカル実行型 (stdio) の MCP サーバーを登録する例:
 ```bash
-npx manage-mcp add sample --config ./configs/sample.json
+npx manage-mcp add local-runner node ./scripts/server.js -- --watch
 ```
-- `--config` は MCP エントリを含む JSON ファイルを指します。
-- 追加前にスキーマバリデーションとバックアップ作成を行います。
+- 第2引数にコマンド本体 (`node` など)、第3引数以降に引数を渡します。`--` 以降は CLI のオプション解析を終了してコマンド引数として扱います。
+- `--env KEY=VALUE` で環境変数を複数指定できます。
+- `--project-path <path>` を付けると `project_path` フィールドを設定できます。
+
+リモート (SSE) エンドポイントを登録する例:
+```bash
+npx manage-mcp add claude-remote https://example.com/mcp --transport sse \
+  -H "Authorization: Bearer <TOKEN>" \
+  -e "ORG_ID=12345"
+```
+- `--transport` に `sse` または `http` を指定すると URL ベースの登録になり、`target` 引数もしくは `--url` オプションで接続先を渡します。
+- `-H/--header KEY: VALUE` でヘッダーを、`-e/--env` で環境変数を設定できます。
+- scope は現状 `user` 固定です。
 
 ### エントリ削除
 ```bash

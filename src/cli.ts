@@ -1,13 +1,14 @@
 #!/usr/bin/env node
 
 import { Command } from 'commander';
-import { promises as fs } from 'fs';
 import { resolveConfigPaths, readRegistry, writeRegistry, ensureBackup } from './services/config-service.js';
 import { sortEntries, addEntry, removeEntry } from './services/mcp-service.js';
 import { validateEntry } from './services/validation.js';
 import { createLogger } from './infra/logger.js';
 import { importMcpConfig } from './services/import-service.js';
 import { exportMcpConfig } from './services/export-service.js';
+import { buildEntryFromCli } from './services/add-command.js';
+import type { AddCommandOptions } from './services/add-command.js';
 import type { McpEntry, ImportOptions, ExportOptions } from './types/index.js';
 
 const program = new Command();
@@ -27,19 +28,39 @@ const getLogger = (): ReturnType<typeof createLogger> => {
 
 const formatEntryDisplay = (name: string, entry: McpEntry): string => {
   const parts = [`${name}:`];
-  parts.push(`  command: ${entry.command}`);
+
+  if (entry.command) {
+    parts.push(`  command: ${entry.command}`);
+  }
 
   if (entry.args && entry.args.length > 0) {
     parts.push(`  args: [${entry.args.map(arg => `"${arg}"`).join(', ')}]`);
   }
 
-  if (entry.type) {
+  if (entry.transport) {
+    parts.push(`  transport: ${entry.transport}`);
+  } else if (entry.type) {
     parts.push(`  type: ${entry.type}`);
+  }
+
+  if (entry.url) {
+    parts.push(`  url: ${entry.url}`);
+  }
+
+  if (entry.project_path) {
+    parts.push(`  project_path: ${entry.project_path}`);
   }
 
   if (entry.env && Object.keys(entry.env).length > 0) {
     parts.push('  env:');
     Object.entries(entry.env).forEach(([key, value]) => {
+      parts.push(`    ${key}: ${value}`);
+    });
+  }
+
+  if (entry.headers && Object.keys(entry.headers).length > 0) {
+    parts.push('  headers:');
+    Object.entries(entry.headers).forEach(([key, value]) => {
       parts.push(`    ${key}: ${value}`);
     });
   }
@@ -51,6 +72,10 @@ const formatValidationErrors = (errors: readonly { path: string; reason: string 
   const summary = `Validation failed with ${errors.length} error(s):`;
   const details = errors.map(error => `  ${error.path}: ${error.reason}`).join('\n');
   return `${summary}\n${details}`;
+};
+
+const appendOptionValue = (value: string, previous: string[] = []): string[] => {
+  return [...previous, value];
 };
 
 program
@@ -96,26 +121,64 @@ program
   .command('add')
   .description('Add a new MCP entry')
   .argument('<name>', 'Name of the MCP entry')
-  .requiredOption('--config <path>', 'Path to the MCP configuration file')
-  .action(async (name: string, options: { config: string }) => {
+  .argument('[target]', 'Remote URL or first command token')
+  .argument('[commandArguments...]', 'Additional command arguments')
+  .option('-s, --scope <scope>', 'Configuration scope (only "user" is supported)', 'user')
+  .option('--transport <transport>', 'Transport type (stdio, sse, http)', 'stdio')
+  .option('--url <url>', 'Remote server URL')
+  .option('-H, --header <header>', 'HTTP header in KEY=VALUE or KEY:VALUE format', appendOptionValue, [])
+  .option('-e, --env <env>', 'Environment variable in KEY=VALUE format', appendOptionValue, [])
+  .option('--project-path <path>', 'Project path to set in the entry')
+  .option('--command <command>', 'Command to execute for stdio transport')
+  .action(async (name: string, target: string | undefined, commandArguments: string[], command: Command) => {
     const logger = getLogger();
     logger.info(`Adding MCP entry: ${name}`);
 
     try {
-      const paths = resolveConfigPaths(process.env);
+      const options = command.opts<{
+        readonly scope: string;
+        readonly transport: string;
+        readonly url?: string;
+        readonly header: string[];
+        readonly env: string[];
+        readonly projectPath?: string;
+        readonly command?: string;
+      }>();
 
-      // Read external config
-      const configContent = await fs.readFile(options.config, 'utf8');
-      const externalEntry = JSON.parse(configContent) as McpEntry;
+      if (options.scope && options.scope !== 'user') {
+        logger.error('Only --scope user is currently supported.');
+        process.exit(1);
+      }
 
-      // Validate the entry
-      const validationErrors = validateEntry(name, externalEntry);
+      const addOptions: AddCommandOptions = {
+        transport: options.transport,
+        env: options.env,
+        headers: options.header,
+        ...(options.projectPath ? { projectPath: options.projectPath } : {}),
+        ...(options.url ? { url: options.url } : {}),
+        ...(options.command ? { command: options.command } : {})
+      };
+
+      const entryResult = buildEntryFromCli({
+        name,
+        commandArguments,
+        ...(target !== undefined ? { target } : {}),
+        options: addOptions
+      });
+
+      if (!entryResult.success) {
+        logger.error(entryResult.error.message);
+        process.exit(1);
+      }
+
+      const entry = entryResult.data;
+      const validationErrors = validateEntry(name, entry);
       if (validationErrors.length > 0) {
         logger.error(formatValidationErrors(validationErrors));
         process.exit(1);
       }
 
-      // Read existing registry
+      const paths = resolveConfigPaths(process.env);
       const registryResult = await readRegistry(paths);
       if (!registryResult.success) {
         logger.error(`Failed to read registry: ${registryResult.error.message}`);
@@ -130,15 +193,13 @@ program
         logger.warn(`MCP entry '${name}' already exists and will be overwritten.`);
       }
 
-      // Create backup
       const backupResult = await ensureBackup(paths);
       if (!backupResult.success) {
         logger.error(`Failed to create backup: ${backupResult.error.message}`);
         process.exit(1);
       }
 
-      // Add entry and write
-      const newRegistry = addEntry(registryResult.data.registry, name, externalEntry);
+      const newRegistry = addEntry(registryResult.data.registry, name, entry);
       const writeResult = await writeRegistry(paths, newRegistry);
 
       if (!writeResult.success) {
@@ -147,15 +208,9 @@ program
       }
 
       logger.info(`Successfully added MCP entry: ${name}`);
-      console.log(formatEntryDisplay(name, externalEntry));
+      console.log(formatEntryDisplay(name, entry));
     } catch (error) {
-      if (error instanceof SyntaxError) {
-        logger.error(`Invalid JSON in config file: ${error.message}`);
-      } else if (error && typeof error === 'object' && 'code' in error && error.code === 'ENOENT') {
-        logger.error(`Config file not found: ${options.config}`);
-      } else {
-        logger.error(`Unexpected error: ${error}`);
-      }
+      logger.error(`Unexpected error: ${error}`);
       process.exit(1);
     }
   });

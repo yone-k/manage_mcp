@@ -101,6 +101,46 @@ describe('validateEntry', () => {
     ]);
   });
 
+  it('should return empty array for valid sse entry with headers', () => {
+    const entry = {
+      type: 'sse',
+      url: 'https://example.com/sse',
+      headers: {
+        Authorization: 'Bearer token'
+      }
+    } as unknown as McpEntry;
+
+    const result = validateEntry('remote', entry);
+    expect(result).toEqual([]);
+  });
+
+  it('should return error when sse entry is missing url', () => {
+    const entry = {
+      type: 'sse',
+      headers: {}
+    } as unknown as McpEntry;
+
+    const result = validateEntry('remote', entry);
+    expect(result).toEqual([
+      { path: 'remote.url', reason: 'url is required for transport "sse"' }
+    ]);
+  });
+
+  it('should return error when headers contain non-string values', () => {
+    const entry = {
+      type: 'sse',
+      url: 'https://example.com/sse',
+      headers: {
+        Authorization: 123
+      }
+    } as unknown as McpEntry;
+
+    const result = validateEntry('remote', entry);
+    expect(result).toEqual([
+      { path: 'remote.headers.Authorization', reason: 'header values must be strings' }
+    ]);
+  });
+
   it('should return multiple errors for multiple validation failures', () => {
     const entry = {
       command: '',

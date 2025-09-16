@@ -1,11 +1,13 @@
 export interface McpEntry {
-  readonly command: string;
+  readonly command?: string;
   readonly args?: readonly string[];
   readonly type?: string;
   readonly env?: Readonly<Record<string, string>>;
   readonly transport?: string;
   readonly capabilities?: unknown;
   readonly project_path?: string;
+  readonly url?: string;
+  readonly headers?: Readonly<Record<string, string>>;
 }
 
 export type McpRegistry = Readonly<Record<string, McpEntry>>;
