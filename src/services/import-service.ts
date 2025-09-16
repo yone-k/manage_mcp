@@ -7,17 +7,17 @@ import { createCursorProfile } from './source-readers/cursor.js';
 import { createCodexProfile } from './source-readers/codex.js';
 import type {
   Result,
-  ExtractError,
+  ImportError,
   ToolProfile,
-  ExtractOptions,
-  ExtractionSummary,
+  ImportOptions,
+  ImportSummary,
   OverwriteDecision,
   McpRegistry,
   McpEntry,
   MergeOutcome
 } from '../types/index.js';
 
-export const resolveProfile = (tool: string): Result<ToolProfile, ExtractError> => {
+export const resolveProfile = (tool: string): Result<ToolProfile, ImportError> => {
   switch (tool) {
     case 'ClaudeCode':
       return { success: true, data: createClaudeCodeProfile() };
@@ -94,14 +94,14 @@ const defaultPromptFn = async (names: readonly string[]): Promise<OverwriteDecis
   }
 };
 
-export const extractMcpConfig = async (
+export const importMcpConfig = async (
   tool: string,
-  options: ExtractOptions,
+  options: ImportOptions,
   promptFn: (names: readonly string[]) => Promise<OverwriteDecision> = defaultPromptFn
-): Promise<ExtractionSummary> => {
+): Promise<ImportSummary> => {
   const logger = createLogger(false);
 
-  logger.info(`Extracting MCP configuration from ${tool}`);
+  logger.info(`Importing MCP configuration from ${tool}`);
 
   // Resolve tool profile
   const profileResult = resolveProfile(tool);

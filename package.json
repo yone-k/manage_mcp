@@ -12,8 +12,8 @@
     "dev": "tsc --watch",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
-    "lint": "eslint src/**/*.ts",
-    "lint:fix": "eslint src/**/*.ts --fix",
+    "lint": "eslint --ext .ts src tests",
+    "lint:fix": "eslint --ext .ts src tests --fix",
     "typecheck": "tsc --noEmit"
   },
   "keywords": [

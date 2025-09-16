@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { createClaudeCodeProfile } from '../../src/services/source-readers/claude-code.js';
-import type { McpRegistry } from '../../src/types/index.js';
 
 const mockFs = vi.hoisted(() => ({
   readFile: vi.fn()
@@ -23,7 +22,7 @@ describe('claude-code profile', () => {
   });
 
   describe('mapToRegistry', () => {
-    it('should extract MCP entries from top-level mcpServers', () => {
+    it('should import MCP entries from top-level mcpServers', () => {
       const profile = createClaudeCodeProfile();
       const sourceData = {
         mcpServers: {
@@ -47,7 +46,7 @@ describe('claude-code profile', () => {
       }
     });
 
-    it('should extract MCP entries from project mcpServers with prefixed names', () => {
+    it('should import MCP entries from project mcpServers with prefixed names', () => {
       const profile = createClaudeCodeProfile();
       const sourceData = {
         projects: {

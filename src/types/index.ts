@@ -49,10 +49,10 @@ export interface RegistryLoad {
   readonly source: 'existing' | 'initialized';
 }
 
-export type ExtractErrorType = 'SourceMissing' | 'ParseFailed' | 'ValidationFailed' | 'IOError';
+export type ImportErrorType = 'SourceMissing' | 'ParseFailed' | 'ValidationFailed' | 'IOError';
 
-export interface ExtractError {
-  readonly type: ExtractErrorType;
+export interface ImportError {
+  readonly type: ImportErrorType;
   readonly message: string;
   readonly cause?: unknown;
 }
@@ -63,11 +63,11 @@ export interface SourceData {
 }
 
 export interface ToolProfile {
-  readonly readSource: () => Promise<Result<SourceData, ExtractError>>;
-  readonly mapToRegistry: (data: unknown) => Result<McpRegistry, ExtractError>;
+  readonly readSource: () => Promise<Result<SourceData, ImportError>>;
+  readonly mapToRegistry: (data: unknown) => Result<McpRegistry, ImportError>;
 }
 
-export interface ExtractionSummary {
+export interface ImportSummary {
   readonly addedCount: number;
   readonly skippedEntries: readonly string[];
   readonly tool: string;
@@ -77,7 +77,7 @@ export interface OverwriteDecision {
   readonly [entryName: string]: boolean;
 }
 
-export interface ExtractOptions {
+export interface ImportOptions {
   readonly force: boolean;
   readonly env: NodeJS.ProcessEnv;
 }
@@ -85,4 +85,21 @@ export interface ExtractOptions {
 export interface MergeOutcome {
   readonly merged: McpRegistry;
   readonly conflicts: readonly string[];
+}
+
+export type ExportErrorType = 'ParseFailed' | 'IOError' | 'Unknown';
+
+export interface ExportError {
+  readonly type: ExportErrorType;
+  readonly message: string;
+  readonly cause?: unknown;
+}
+
+export interface ExportOptions {
+  readonly env: NodeJS.ProcessEnv;
+  readonly tools: readonly string[];
+}
+
+export interface ExportSummary {
+  readonly updatedTools: readonly string[];
 }

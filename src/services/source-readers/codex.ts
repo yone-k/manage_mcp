@@ -2,7 +2,7 @@ import { promises as fs } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { parse as parseToml } from '@iarna/toml';
-import type { ToolProfile, Result, ExtractError, SourceData, McpRegistry, McpEntry } from '../../types/index.js';
+import type { ToolProfile, Result, ImportError, SourceData, McpRegistry, McpEntry } from '../../types/index.js';
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -21,28 +21,31 @@ const isMcpEntry = (value: unknown): value is McpEntry => {
 };
 
 export const createCodexProfile = (): ToolProfile => {
-  const mapToRegistry = (data: unknown): Result<McpRegistry, ExtractError> => {
-    if (!isRecord(data) || !isRecord(data.mcp_servers)) {
+  const mapToRegistry = (data: unknown): Result<McpRegistry, ImportError> => {
+    if (!isRecord(data)) {
       return { success: true, data: {} };
     }
 
     const registry: Record<string, McpEntry> = {};
 
-    Object.entries(data.mcp_servers).forEach(([name, entry]) => {
-      if (isMcpEntry(entry)) {
-        registry[name] = entry;
+    const servers = data.mcp_servers;
+    if (isRecord(servers)) {
+      for (const [name, entry] of Object.entries(servers)) {
+        if (isMcpEntry(entry)) {
+          registry[name] = entry;
+        }
       }
-    });
+    }
 
     return { success: true, data: registry };
   };
 
-  const readSource = async (): Promise<Result<SourceData, ExtractError>> => {
+  const readSource = async (): Promise<Result<SourceData, ImportError>> => {
     const filePath = join(homedir(), '.codex/config.toml');
 
     try {
       const content = await fs.readFile(filePath, 'utf8');
-      const parsed = parseToml(content);
+      const parsed: unknown = parseToml(content);
       const registryResult = mapToRegistry(parsed);
 
       if (!registryResult.success) {

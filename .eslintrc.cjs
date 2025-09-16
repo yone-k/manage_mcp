@@ -4,7 +4,7 @@ module.exports = {
   parserOptions: {
     ecmaVersion: 2022,
     sourceType: 'module',
-    project: './tsconfig.json'
+    project: './tsconfig.eslint.json'
   },
   plugins: ['@typescript-eslint'],
   extends: [
@@ -19,7 +19,7 @@ module.exports = {
   },
   rules: {
     // TypeScript rules
-    '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_' }],
+    '@typescript-eslint/no-unused-vars': ['error', { argsIgnorePattern: '^_', varsIgnorePattern: '^_' }],
     'no-unused-vars': 'off',
     '@typescript-eslint/no-explicit-any': 'error',
     '@typescript-eslint/explicit-function-return-type': 'error',
@@ -31,13 +31,24 @@ module.exports = {
     'no-console': 'off',
     'eqeqeq': 'error',
     'no-eval': 'error',
-    'no-implied-eval': 'error'
+    'no-implied-eval': 'error',
+
+    // Additional TypeScript specific rules for consistent coding style
+    '@typescript-eslint/no-unsafe-assignment': 'error',
+    '@typescript-eslint/no-unsafe-return': 'error',
+    '@typescript-eslint/no-unsafe-member-access': 'error',
+    '@typescript-eslint/no-floating-promises': 'error',
+    '@typescript-eslint/prefer-readonly': 'error'
   },
   overrides: [
     {
-      files: ['**/*.test.ts', '**/*.spec.ts'],
+      files: ['**/*.test.ts'],
       rules: {
-        'no-console': 'off'
+        'no-console': 'off',
+        '@typescript-eslint/no-unsafe-assignment': 'off',
+        '@typescript-eslint/no-unsafe-member-access': 'off',
+        '@typescript-eslint/no-explicit-any': 'off',
+        '@typescript-eslint/no-unsafe-call': 'off'
       }
     }
   ]

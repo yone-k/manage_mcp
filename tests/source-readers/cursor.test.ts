@@ -22,7 +22,7 @@ describe('cursor profile', () => {
   });
 
   describe('mapToRegistry', () => {
-    it('should extract MCP entries from mcpServers', () => {
+    it('should import MCP entries from mcpServers', () => {
       const profile = createCursorProfile();
       const sourceData = {
         mcpServers: {

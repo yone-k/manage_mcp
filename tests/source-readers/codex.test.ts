@@ -28,7 +28,7 @@ describe('codex profile', () => {
   });
 
   describe('mapToRegistry', () => {
-    it('should extract MCP entries from mcp_servers sections', () => {
+    it('should import MCP entries from mcp_servers sections', () => {
       const profile = createCodexProfile();
       const sourceData = {
         mcp_servers: {

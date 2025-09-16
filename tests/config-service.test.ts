@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { promises as fs } from 'fs';
 import { resolveConfigPaths, readRegistry, writeRegistry, ensureBackup } from '../src/services/config-service.js';
 import type { McpRegistry } from '../src/types/index.js';
@@ -21,7 +21,13 @@ vi.mock('os', () => ({
   homedir: vi.fn(() => '/home/test')
 }));
 
-const mockFs = fs as any;
+const mockFs = fs as unknown as {
+  readFile: ReturnType<typeof vi.fn>;
+  writeFile: ReturnType<typeof vi.fn>;
+  mkdir: ReturnType<typeof vi.fn>;
+  access: ReturnType<typeof vi.fn>;
+  copyFile: ReturnType<typeof vi.fn>;
+};
 
 describe('resolveConfigPaths', () => {
   beforeEach(() => {

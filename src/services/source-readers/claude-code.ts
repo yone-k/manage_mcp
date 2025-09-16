@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
-import type { ToolProfile, Result, ExtractError, SourceData, McpRegistry, McpEntry } from '../../types/index.js';
+import type { ToolProfile, Result, ImportError, SourceData, McpRegistry, McpEntry } from '../../types/index.js';
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -19,55 +19,62 @@ const isMcpEntry = (value: unknown): value is McpEntry => {
   return true;
 };
 
-const extractProjectName = (projectPath: string): string => {
+const deriveProjectName = (projectPath: string): string => {
   const pathParts = projectPath.split('/');
   const projectName = pathParts[pathParts.length - 1] || 'project';
   return projectName.replace(/[^a-zA-Z0-9]/g, '_');
 };
 
 export const createClaudeCodeProfile = (): ToolProfile => {
-  const mapToRegistry = (data: unknown): Result<McpRegistry, ExtractError> => {
+  const mapToRegistry = (data: unknown): Result<McpRegistry, ImportError> => {
     if (!isRecord(data)) {
       return { success: true, data: {} };
     }
 
     const registry: Record<string, McpEntry> = {};
 
-    // Extract from top-level mcpServers
-    if (isRecord(data.mcpServers)) {
-      Object.entries(data.mcpServers).forEach(([name, entry]) => {
+    const rootServers = data.mcpServers;
+    if (isRecord(rootServers)) {
+      for (const [name, entry] of Object.entries(rootServers)) {
         if (isMcpEntry(entry)) {
           registry[name] = entry;
         }
-      });
+      }
     }
 
-    // Extract from project mcpServers
-    if (isRecord(data.projects)) {
-      Object.entries(data.projects).forEach(([projectPath, projectData]) => {
-        if (isRecord(projectData) && isRecord(projectData.mcpServers)) {
-          const projectName = extractProjectName(projectPath);
-          Object.entries(projectData.mcpServers).forEach(([name, entry]) => {
-            if (isMcpEntry(entry)) {
-              const sanitizedName = name.replace(/[^a-zA-Z0-9-_]/g, '_');
-              const compositeName = `project[${projectName}].${sanitizedName}`;
-              const enrichedEntry: McpEntry = { ...(entry as McpEntry), project_path: projectPath };
-              (registry as Record<string, McpEntry>)[compositeName] = enrichedEntry;
-            }
-          });
+    const projects = data.projects;
+    if (isRecord(projects)) {
+      for (const [projectPath, projectData] of Object.entries(projects)) {
+        if (!isRecord(projectData)) {
+          continue;
         }
-      });
+
+        const projectServers = projectData.mcpServers;
+        if (!isRecord(projectServers)) {
+          continue;
+        }
+
+        const projectName = deriveProjectName(projectPath);
+        for (const [name, entry] of Object.entries(projectServers)) {
+          if (isMcpEntry(entry)) {
+            const sanitizedName = name.replace(/[^a-zA-Z0-9-_]/g, '_');
+            const compositeName = `project[${projectName}].${sanitizedName}`;
+            const enrichedEntry: McpEntry = { ...entry, project_path: projectPath };
+            registry[compositeName] = enrichedEntry;
+          }
+        }
+      }
     }
 
     return { success: true, data: registry };
   };
 
-  const readSource = async (): Promise<Result<SourceData, ExtractError>> => {
+  const readSource = async (): Promise<Result<SourceData, ImportError>> => {
     const filePath = join(homedir(), '.claude.json');
 
     try {
       const content = await fs.readFile(filePath, 'utf8');
-      const parsed = JSON.parse(content);
+      const parsed: unknown = JSON.parse(content);
       const registryResult = mapToRegistry(parsed);
 
       if (!registryResult.success) {

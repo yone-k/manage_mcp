@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { validateEntry, validateMcpRegistry } from '../src/services/validation.js';
-import type { McpEntry, ValidationError } from '../src/types/index.js';
+import type { McpEntry } from '../src/types/index.js';
 
 describe('validateEntry', () => {
   it('should return empty array for valid entry with command only', () => {

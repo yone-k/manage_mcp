@@ -6,8 +6,9 @@ import { resolveConfigPaths, readRegistry, writeRegistry, ensureBackup } from '.
 import { sortEntries, addEntry, removeEntry } from './services/mcp-service.js';
 import { validateEntry } from './services/validation.js';
 import { createLogger } from './infra/logger.js';
-import { extractMcpConfig } from './services/extract-service.js';
-import type { McpEntry, ExtractOptions } from './types/index.js';
+import { importMcpConfig } from './services/import-service.js';
+import { exportMcpConfig } from './services/export-service.js';
+import type { McpEntry, ImportOptions, ExportOptions } from './types/index.js';
 
 const program = new Command();
 
@@ -211,29 +212,63 @@ program
   });
 
 program
-  .command('extract')
-  .description('Extract MCP entries from external tool configurations')
+  .command('import')
+  .description('Import MCP entries from external tool configurations')
   .argument('<tool>', 'Tool name (ClaudeCode, ClaudeDesktop, Cursor, Codex)')
   .option('--force', 'Overwrite existing entries without confirmation', false)
   .action(async (tool: string, options: { force: boolean }) => {
     const logger = getLogger();
 
     try {
-      const extractOptions: ExtractOptions = {
+      const importOptions: ImportOptions = {
         force: options.force,
         env: process.env
       };
 
-      const result = await extractMcpConfig(tool, extractOptions);
+      const result = await importMcpConfig(tool, importOptions);
 
       if (result.addedCount === 0) {
         logger.info(`No new entries were added from ${tool}`);
       } else {
-        logger.info(`Successfully extracted ${result.addedCount} entries from ${tool}`);
+      logger.info(`Successfully imported ${result.addedCount} entries from ${tool}`);
       }
 
       if (result.skippedEntries.length > 0) {
         logger.warn(`Skipped ${result.skippedEntries.length} existing entries: ${result.skippedEntries.join(', ')}`);
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        logger.error(error.message);
+      } else {
+        logger.error(`Unexpected error: ${error}`);
+      }
+      process.exit(1);
+    }
+  });
+
+program
+  .command('export')
+  .description('Export MCP entries into external tool configurations')
+  .argument('<tools...>', 'Tool names (ClaudeCode, ClaudeDesktop, Cursor, Codex)')
+  .action(async (tools: string[]) => {
+    const logger = getLogger();
+
+    if (tools.length === 0) {
+      logger.warn('No tools specified. Nothing to export.');
+      return;
+    }
+
+    try {
+      const exportOptions: ExportOptions = {
+        env: process.env,
+        tools
+      };
+
+      const summary = await exportMcpConfig(tools, exportOptions);
+      if (summary.updatedTools.length === 0) {
+        logger.info('No tools were updated.');
+      } else {
+        logger.info(`Exported MCP configuration to: ${summary.updatedTools.join(', ')}`);
       }
     } catch (error) {
       if (error instanceof Error) {

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { extractMcpConfig, resolveProfile, promptOverwrite, mergeEntries } from '../src/services/extract-service.js';
-import type { ExtractOptions, McpRegistry, ConfigPaths, RegistryLoad } from '../src/types/index.js';
+import { importMcpConfig, resolveProfile, promptOverwrite, mergeEntries } from '../src/services/import-service.js';
+import type { ImportOptions, McpRegistry, ConfigPaths, RegistryLoad } from '../src/types/index.js';
 
 const mockConfigService = vi.hoisted(() => ({
   resolveConfigPaths: vi.fn(),
@@ -39,7 +39,7 @@ vi.mock('../src/services/source-readers/codex.js', () => ({
   createCodexProfile: vi.fn(() => mockClaudeCodeProfile)
 }));
 
-describe('extract-service', () => {
+describe('import-service', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
@@ -116,10 +116,10 @@ describe('extract-service', () => {
     });
   });
 
-  describe('extractMcpConfig', () => {
-    it('should extract and merge MCP config successfully', async () => {
+  describe('importMcpConfig', () => {
+    it('should import and merge MCP config successfully', async () => {
       const tool = 'ClaudeCode';
-      const options: ExtractOptions = { force: false, env: {} };
+      const options: ImportOptions = { force: false, env: {} };
       const mockPaths: ConfigPaths = {
         configDir: '/test',
         configFile: '/test/mcp.json',
@@ -143,7 +143,7 @@ describe('extract-service', () => {
         }
       });
 
-      const result = await extractMcpConfig(tool, options);
+      const result = await importMcpConfig(tool, options);
 
       expect(result.tool).toBe(tool);
       expect(result.addedCount).toBe(0);
@@ -152,7 +152,7 @@ describe('extract-service', () => {
 
     it('should handle source missing case', async () => {
       const tool = 'ClaudeCode';
-      const options: ExtractOptions = { force: false, env: {} };
+      const options: ImportOptions = { force: false, env: {} };
 
       mockClaudeCodeProfile.readSource.mockResolvedValue({
         success: false,
@@ -162,7 +162,7 @@ describe('extract-service', () => {
         }
       });
 
-      const result = await extractMcpConfig(tool, options);
+      const result = await importMcpConfig(tool, options);
 
       expect(result.tool).toBe(tool);
       expect(result.addedCount).toBe(0);
