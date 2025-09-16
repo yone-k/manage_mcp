@@ -1,0 +1,46 @@
+{
+  "name": "manage-mcp",
+  "version": "1.0.0",
+  "description": "CLI tool for managing MCP (Model Context Protocol) configurations",
+  "type": "module",
+  "main": "dist/cli.js",
+  "bin": {
+    "manage-mcp": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest",
+    "test:coverage": "vitest --coverage",
+    "lint": "eslint --ext .ts src tests",
+    "lint:fix": "eslint --ext .ts src tests --fix",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "mcp",
+    "model-context-protocol",
+    "cli",
+    "configuration",
+    "typescript"
+  ],
+  "author": "",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.19.15",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "@vitest/coverage-v8": "^1.0.0",
+    "eslint": "^8.57.0",
+    "eslint-config-prettier": "^9.0.0",
+    "eslint-plugin-functional": "^6.0.0",
+    "typescript": "^5.0.0",
+    "vitest": "^1.0.0"
+  },
+  "dependencies": {
+    "@iarna/toml": "^2.2.5",
+    "commander": "^12.0.0"
+  }
+}
