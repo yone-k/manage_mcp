@@ -76,7 +76,8 @@ describe('readRegistry', () => {
 
   it('should return parsed registry when file exists', async () => {
     const registryData = { 'test': { command: 'docker' } };
-    mockFs.readFile.mockResolvedValue(JSON.stringify(registryData));
+    const configData = { mcpServers: registryData };
+    mockFs.readFile.mockResolvedValue(JSON.stringify(configData));
 
     const result = await readRegistry(paths);
 
@@ -120,9 +121,34 @@ describe('readRegistry', () => {
     }
   });
 
+  it('should return error when mcpServers key is missing', async () => {
+    mockFs.readFile.mockResolvedValue(JSON.stringify({}));
+
+    const result = await readRegistry(paths);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.type).toBe('InvalidFormat');
+    }
+  });
+
+  it('should accept entries containing project_path metadata', async () => {
+    const registryData = {
+      'project[demo].server': { command: 'run', project_path: '/tmp/demo' }
+    };
+    mockFs.readFile.mockResolvedValue(JSON.stringify({ mcpServers: registryData }));
+
+    const result = await readRegistry(paths);
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.registry).toEqual(registryData);
+    }
+  });
+
   it('should return error for invalid entry structure', async () => {
     const invalidRegistry = { 'bad': { command: '' } };
-    mockFs.readFile.mockResolvedValue(JSON.stringify(invalidRegistry));
+    mockFs.readFile.mockResolvedValue(JSON.stringify({ mcpServers: invalidRegistry }));
 
     const result = await readRegistry(paths);
 
@@ -156,7 +182,11 @@ describe('writeRegistry', () => {
 
     expect(result.success).toBe(true);
     expect(mockFs.mkdir).toHaveBeenCalledWith('/test', { recursive: true });
-    expect(mockFs.writeFile).toHaveBeenCalledWith('/test/mcp.json', JSON.stringify(registry, null, 2), 'utf8');
+    expect(mockFs.writeFile).toHaveBeenCalledWith(
+      '/test/mcp.json',
+      JSON.stringify({ mcpServers: registry }, null, 2),
+      'utf8'
+    );
   });
 
   it('should return error when write fails', async () => {

@@ -6,7 +6,8 @@ import { resolveConfigPaths, readRegistry, writeRegistry, ensureBackup } from '.
 import { sortEntries, addEntry, removeEntry } from './services/mcp-service.js';
 import { validateEntry } from './services/validation.js';
 import { createLogger } from './infra/logger.js';
-import type { McpEntry } from './types/index.js';
+import { extractMcpConfig } from './services/extract-service.js';
+import type { McpEntry, ExtractOptions } from './types/index.js';
 
 const program = new Command();
 
@@ -205,6 +206,41 @@ program
       logger.info(`Successfully removed MCP entry: ${name}`);
     } catch (error) {
       logger.error(`Unexpected error: ${error}`);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('extract')
+  .description('Extract MCP entries from external tool configurations')
+  .argument('<tool>', 'Tool name (ClaudeCode, ClaudeDesktop, Cursor, Codex)')
+  .option('--force', 'Overwrite existing entries without confirmation', false)
+  .action(async (tool: string, options: { force: boolean }) => {
+    const logger = getLogger();
+
+    try {
+      const extractOptions: ExtractOptions = {
+        force: options.force,
+        env: process.env
+      };
+
+      const result = await extractMcpConfig(tool, extractOptions);
+
+      if (result.addedCount === 0) {
+        logger.info(`No new entries were added from ${tool}`);
+      } else {
+        logger.info(`Successfully extracted ${result.addedCount} entries from ${tool}`);
+      }
+
+      if (result.skippedEntries.length > 0) {
+        logger.warn(`Skipped ${result.skippedEntries.length} existing entries: ${result.skippedEntries.join(', ')}`);
+      }
+    } catch (error) {
+      if (error instanceof Error) {
+        logger.error(error.message);
+      } else {
+        logger.error(`Unexpected error: ${error}`);
+      }
       process.exit(1);
     }
   });

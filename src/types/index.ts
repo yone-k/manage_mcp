@@ -5,9 +5,14 @@ export interface McpEntry {
   readonly env?: Readonly<Record<string, string>>;
   readonly transport?: string;
   readonly capabilities?: unknown;
+  readonly project_path?: string;
 }
 
 export type McpRegistry = Readonly<Record<string, McpEntry>>;
+
+export interface McpConfig {
+  readonly mcpServers: McpRegistry;
+}
 
 export interface ConfigPaths {
   readonly configFile: string;
@@ -42,4 +47,42 @@ export interface Logger {
 export interface RegistryLoad {
   readonly registry: McpRegistry;
   readonly source: 'existing' | 'initialized';
+}
+
+export type ExtractErrorType = 'SourceMissing' | 'ParseFailed' | 'ValidationFailed' | 'IOError';
+
+export interface ExtractError {
+  readonly type: ExtractErrorType;
+  readonly message: string;
+  readonly cause?: unknown;
+}
+
+export interface SourceData {
+  readonly entries: McpRegistry;
+  readonly promptRequired: readonly string[];
+}
+
+export interface ToolProfile {
+  readonly readSource: () => Promise<Result<SourceData, ExtractError>>;
+  readonly mapToRegistry: (data: unknown) => Result<McpRegistry, ExtractError>;
+}
+
+export interface ExtractionSummary {
+  readonly addedCount: number;
+  readonly skippedEntries: readonly string[];
+  readonly tool: string;
+}
+
+export interface OverwriteDecision {
+  readonly [entryName: string]: boolean;
+}
+
+export interface ExtractOptions {
+  readonly force: boolean;
+  readonly env: NodeJS.ProcessEnv;
+}
+
+export interface MergeOutcome {
+  readonly merged: McpRegistry;
+  readonly conflicts: readonly string[];
 }

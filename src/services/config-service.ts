@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import { join } from 'path';
 import { homedir } from 'os';
-import type { ConfigPaths, McpRegistry, Result, IOError, RegistryLoad, McpEntry } from '../types/index.js';
+import type { ConfigPaths, McpRegistry, Result, IOError, RegistryLoad, McpEntry, McpConfig } from '../types/index.js';
 
 const isRecord = (value: unknown): value is Record<string, unknown> => {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
@@ -30,10 +30,14 @@ const isMcpEntry = (value: unknown): value is McpEntry => {
     }
   }
 
+  if (value.project_path !== undefined && typeof value.project_path !== 'string') {
+    return false;
+  }
+
   return true;
 };
 
-const parseRegistry = (raw: unknown): Result<McpRegistry, IOError> => {
+const parseConfig = (raw: unknown): Result<McpRegistry, IOError> => {
   if (!isRecord(raw)) {
     return {
       success: false,
@@ -44,9 +48,30 @@ const parseRegistry = (raw: unknown): Result<McpRegistry, IOError> => {
     };
   }
 
+  const servers = raw.mcpServers;
+  if (servers === undefined) {
+    return {
+      success: false,
+      error: {
+        type: 'InvalidFormat',
+        message: 'Expected "mcpServers" property in configuration.'
+      }
+    };
+  }
+
+  if (!isRecord(servers)) {
+    return {
+      success: false,
+      error: {
+        type: 'InvalidFormat',
+        message: '"mcpServers" must be an object of MCP entries.'
+      }
+    };
+  }
+
   const registryEntries: Record<string, McpEntry> = {};
 
-  for (const [name, entry] of Object.entries(raw)) {
+  for (const [name, entry] of Object.entries(servers)) {
     if (!isMcpEntry(entry)) {
       return {
         success: false,
@@ -75,8 +100,8 @@ export const resolveConfigPaths = (env: NodeJS.ProcessEnv): ConfigPaths => {
 export const readRegistry = async (paths: ConfigPaths): Promise<Result<RegistryLoad, IOError>> => {
   try {
     const content = await fs.readFile(paths.configFile, 'utf8');
-    const parsed = JSON.parse(content);
-    const registryResult = parseRegistry(parsed);
+    const parsed = JSON.parse(content) as McpConfig | unknown;
+    const registryResult = parseConfig(parsed);
 
     if (!registryResult.success) {
       return registryResult;
@@ -137,7 +162,7 @@ export const readRegistry = async (paths: ConfigPaths): Promise<Result<RegistryL
 export const writeRegistry = async (paths: ConfigPaths, registry: McpRegistry): Promise<Result<void, IOError>> => {
   try {
     await fs.mkdir(paths.configDir, { recursive: true });
-    const content = JSON.stringify(registry, null, 2);
+    const content = JSON.stringify({ mcpServers: registry }, null, 2);
     await fs.writeFile(paths.configFile, content, 'utf8');
     return { success: true, data: undefined };
   } catch (error: unknown) {
