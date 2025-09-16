@@ -9,10 +9,6 @@ export interface McpEntry {
 
 export type McpRegistry = Readonly<Record<string, McpEntry>>;
 
-export interface McpConfig {
-  readonly mcpServers: McpRegistry;
-}
-
 export interface ConfigPaths {
   readonly configFile: string;
   readonly backupFile: string;
@@ -29,7 +25,7 @@ export type Result<T, E> =
   | { readonly success: false; readonly error: E };
 
 export interface IOError {
-  readonly type: 'FileNotFound' | 'PermissionDenied' | 'InvalidJSON' | 'Unknown';
+  readonly type: 'FileNotFound' | 'PermissionDenied' | 'InvalidJSON' | 'InvalidFormat' | 'Unknown';
   readonly message: string;
   readonly cause?: unknown;
 }
@@ -41,4 +37,9 @@ export interface Logger {
   readonly info: (message: string) => void;
   readonly warn: (message: string) => void;
   readonly error: (message: string) => void;
+}
+
+export interface RegistryLoad {
+  readonly registry: McpRegistry;
+  readonly source: 'existing' | 'initialized';
 }

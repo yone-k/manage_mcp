@@ -67,7 +67,11 @@ program
         process.exit(1);
       }
 
-      const entries = sortEntries(registryResult.data);
+      if (registryResult.data.source === 'initialized') {
+        logger.info(`Initialized new MCP registry at ${paths.configFile}`);
+      }
+
+      const entries = sortEntries(registryResult.data.registry);
 
       if (entries.length === 0) {
         logger.info('No MCP entries found');
@@ -116,6 +120,14 @@ program
         process.exit(1);
       }
 
+      if (registryResult.data.source === 'initialized') {
+        logger.info(`Initialized new MCP registry at ${paths.configFile}`);
+      }
+
+      if (name in registryResult.data.registry) {
+        logger.warn(`MCP entry '${name}' already exists and will be overwritten.`);
+      }
+
       // Create backup
       const backupResult = await ensureBackup(paths);
       if (!backupResult.success) {
@@ -124,7 +136,7 @@ program
       }
 
       // Add entry and write
-      const newRegistry = addEntry(registryResult.data, name, externalEntry);
+      const newRegistry = addEntry(registryResult.data.registry, name, externalEntry);
       const writeResult = await writeRegistry(paths, newRegistry);
 
       if (!writeResult.success) {
@@ -165,7 +177,11 @@ program
       }
 
       // Check if entry exists
-      if (!(name in registryResult.data)) {
+      if (registryResult.data.source === 'initialized') {
+        logger.info(`Initialized new MCP registry at ${paths.configFile}`);
+      }
+
+      if (!(name in registryResult.data.registry)) {
         logger.warn(`MCP entry '${name}' not found`);
         return;
       }
@@ -178,7 +194,7 @@ program
       }
 
       // Remove entry and write
-      const newRegistry = removeEntry(registryResult.data, name);
+      const newRegistry = removeEntry(registryResult.data.registry, name);
       const writeResult = await writeRegistry(paths, newRegistry);
 
       if (!writeResult.success) {

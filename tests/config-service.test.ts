@@ -62,31 +62,19 @@ describe('readRegistry', () => {
     vi.clearAllMocks();
   });
 
-  it('should return empty registry when file does not exist', async () => {
+  it('should return empty registry and initialized status when file does not exist', async () => {
     mockFs.readFile.mockRejectedValue({ code: 'ENOENT' });
 
     const result = await readRegistry(paths);
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data).toEqual({});
+      expect(result.data.registry).toEqual({});
+      expect(result.data.source).toBe('initialized');
     }
   });
 
   it('should return parsed registry when file exists', async () => {
-    const registryData = { 'test': { command: 'docker' } };
-    const configData = { mcpServers: registryData };
-    mockFs.readFile.mockResolvedValue(JSON.stringify(configData));
-
-    const result = await readRegistry(paths);
-
-    expect(result.success).toBe(true);
-    if (result.success) {
-      expect(result.data).toEqual(registryData);
-    }
-  });
-
-  it('should handle legacy format (no mcpServers key)', async () => {
     const registryData = { 'test': { command: 'docker' } };
     mockFs.readFile.mockResolvedValue(JSON.stringify(registryData));
 
@@ -94,7 +82,8 @@ describe('readRegistry', () => {
 
     expect(result.success).toBe(true);
     if (result.success) {
-      expect(result.data).toEqual({});
+      expect(result.data.registry).toEqual(registryData);
+      expect(result.data.source).toBe('existing');
     }
   });
 
@@ -117,6 +106,29 @@ describe('readRegistry', () => {
     expect(result.success).toBe(false);
     if (!result.success) {
       expect(result.error.type).toBe('PermissionDenied');
+    }
+  });
+
+  it('should return error for invalid top-level format', async () => {
+    mockFs.readFile.mockResolvedValue('[]');
+
+    const result = await readRegistry(paths);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.type).toBe('InvalidFormat');
+    }
+  });
+
+  it('should return error for invalid entry structure', async () => {
+    const invalidRegistry = { 'bad': { command: '' } };
+    mockFs.readFile.mockResolvedValue(JSON.stringify(invalidRegistry));
+
+    const result = await readRegistry(paths);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.type).toBe('InvalidFormat');
     }
   });
 });
@@ -144,11 +156,7 @@ describe('writeRegistry', () => {
 
     expect(result.success).toBe(true);
     expect(mockFs.mkdir).toHaveBeenCalledWith('/test', { recursive: true });
-    expect(mockFs.writeFile).toHaveBeenCalledWith(
-      '/test/mcp.json',
-      JSON.stringify({ mcpServers: registry }, null, 2),
-      'utf8'
-    );
+    expect(mockFs.writeFile).toHaveBeenCalledWith('/test/mcp.json', JSON.stringify(registry, null, 2), 'utf8');
   });
 
   it('should return error when write fails', async () => {
